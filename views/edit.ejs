@@ -1,0 +1,50 @@
+<%- include('partials/header') %>
+
+<section class="card narrow">
+  <header class="card__header">
+    <div>
+      <p class="eyebrow">Update</p>
+      <h1>Edit Product</h1>
+    </div>
+  </header>
+
+  <% if (error) { %>
+    <div class="alert error"><%= error %></div>
+  <% } %>
+
+  <form action="/edit/<%= product.productId %>" method="POST" enctype="multipart/form-data" class="form">
+    <label>
+      <span>Name</span>
+      <input type="text" name="name" value="<%= product.name %>" required />
+    </label>
+
+    <label>
+      <span>Price</span>
+      <input type="number" name="price" step="0.01" min="0" value="<%= product.price %>" required />
+    </label>
+
+    <label>
+      <span>Quantity</span>
+      <input type="number" name="quantity" min="0" value="<%= product.quantity %>" required />
+    </label>
+
+    <label>
+      <span>Replace Image (optional)</span>
+      <input type="file" name="image" accept="image/*" />
+    </label>
+
+    <% if (product.url_image) { %>
+      <div class="preview">
+        <p class="muted">Current image</p>
+        <img src="<%= product.url_image %>" alt="<%= product.name %>" />
+      </div>
+    <% } %>
+
+    <div class="form__actions">
+      <a class="btn ghost" href="/">Cancel</a>
+      <button class="btn primary" type="submit">Save changes</button>
+    </div>
+  </form>
+</section>
+
+<%- include('partials/footer') %>

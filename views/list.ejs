@@ -1,0 +1,60 @@
+<%- include('partials/header') %>
+
+<% if (message) { %>
+  <div class="alert success"><%= message %></div>
+<% } %>
+<% if (error) { %>
+  <div class="alert error"><%= error %></div>
+<% } %>
+
+<section class="card">
+  <header class="card__header">
+    <div>
+      <p class="eyebrow">Inventory</p>
+      <h1>Products</h1>
+    </div>
+    <a class="btn primary" href="/add">+ New Product</a>
+  </header>
+
+  <% if (products.length === 0) { %>
+    <p class="muted">No products yet. Add one to get started.</p>
+  <% } else { %>
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>Image</th>
+            <th>Name</th>
+            <th>Price</th>
+            <th>Quantity</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% products.forEach((p) => { %>
+            <tr>
+              <td class="thumb">
+                <% if (p.url_image) { %>
+                  <img src="<%= p.url_image %>" alt="<%= p.name %>" />
+                <% } else { %>
+                  <span class="muted">No image</span>
+                <% } %>
+              </td>
+              <td><%= p.name %></td>
+              <td><%= Number(p.price).toLocaleString('en-US', { style: 'currency', currency: 'USD' }) %></td>
+              <td><%= p.quantity %></td>
+              <td class="actions">
+                <a class="btn ghost" href="/edit/<%= p.productId %>">Edit</a>
+                <form action="/delete/<%= p.productId %>" method="POST" onsubmit="return confirm('Delete this product?');">
+                  <button class="btn danger" type="submit">Delete</button>
+                </form>
+              </td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+</section>
+
+<%- include('partials/footer') %>
