@@ -1,0 +1,33 @@
+<%- include('../partials/header') %>
+
+<div class="card narrow">
+  <div class="card__header">
+    <div>
+      <p class="eyebrow">Create</p>
+      <h1>New Category</h1>
+    </div>
+  </div>
+
+  <% if (error) { %>
+    <div class="alert error"><%= error %></div>
+  <% } %>
+
+  <form method="POST" action="/categories/add" class="form">
+    <label>
+      Category Name *
+      <input type="text" name="name" placeholder="e.g., Electronics" required />
+    </label>
+
+    <label>
+      Description
+      <input type="text" name="description" placeholder="e.g., Electronic devices and accessories" />
+    </label>
+
+    <div class="form__actions">
+      <a href="/categories" class="btn ghost">Cancel</a>
+      <button type="submit" class="btn primary">Create Category</button>
+    </div>
+  </form>
+</div>
+
+<%- include('../partials/footer') %>

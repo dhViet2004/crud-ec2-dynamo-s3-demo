@@ -9,7 +9,10 @@ if (missing.length) {
 }
 
 const REGION = process.env.AWS_REGION;
-const TABLE_NAME = process.env.AWS_DYNAMO_TABLE;
+const TABLE_PRODUCTS = process.env.AWS_DYNAMO_TABLE || 'Products';
+const TABLE_USERS = process.env.AWS_USERS_TABLE || 'Users';
+const TABLE_CATEGORIES = process.env.AWS_CATEGORIES_TABLE || 'Categories';
+const TABLE_LOGS = process.env.AWS_LOGS_TABLE || 'ProductLogs';
 const BUCKET_NAME = process.env.AWS_S3_BUCKET;
 
 const s3Client = new S3Client({ region: REGION });
@@ -20,7 +23,10 @@ const docClient = DynamoDBDocumentClient.from(ddbClient, {
 
 module.exports = {
   REGION,
-  TABLE_NAME,
+  TABLE_PRODUCTS,
+  TABLE_USERS,
+  TABLE_CATEGORIES,
+  TABLE_LOGS,
   BUCKET_NAME,
   s3Client,
   docClient

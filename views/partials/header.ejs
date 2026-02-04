@@ -11,7 +11,21 @@
     <div class="brand">Product Manager</div>
     <nav>
       <a href="/" class="btn ghost">Products</a>
-      <a href="/add" class="btn primary">Add Product</a>
+      <a href="/categories" class="btn ghost">Categories</a>
+      <% if (isAdmin) { %>
+        <a href="/add" class="btn primary">Add Product</a>
+        <a href="/categories/add" class="btn primary">Add Category</a>
+      <% } %>
+      <% if (user) { %>
+        <span class="user-info">
+          <%= user.username %> 
+          <span class="badge <%= user.role === 'admin' ? 'admin' : 'staff' %>"><%= user.role %></span>
+        </span>
+        <a href="/auth/logout" class="btn">Logout</a>
+      <% } else { %>
+        <a href="/auth/login" class="btn ghost">Login</a>
+        <a href="/auth/register" class="btn ghost">Register</a>
+      <% } %>
     </nav>
   </header>
   <main class="page">

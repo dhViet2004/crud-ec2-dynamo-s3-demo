@@ -1,0 +1,58 @@
+<%- include('../partials/header') %>
+
+<div class="card narrow">
+  <div class="card__header">
+    <div>
+      <p class="eyebrow">Manage</p>
+      <h1>Categories</h1>
+    </div>
+    <% if (isAdmin) { %>
+      <a href="/categories/add" class="btn primary">Add Category</a>
+    <% } %>
+  </div>
+
+  <% if (message) { %>
+    <div class="alert success"><%= message %></div>
+  <% } %>
+  <% if (error) { %>
+    <div class="alert error"><%= error %></div>
+  <% } %>
+
+  <% if (categories && categories.length > 0) { %>
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Description</th>
+            <% if (isAdmin) { %>
+              <th style="width: 150px;">Actions</th>
+            <% } %>
+          </tr>
+        </thead>
+        <tbody>
+          <% categories.forEach(cat => { %>
+            <tr>
+              <td><strong><%= cat.name %></strong></td>
+              <td><%= cat.description || '—' %></td>
+              <% if (isAdmin) { %>
+                <td>
+                  <div class="actions">
+                    <a href="/categories/edit/<%= cat.categoryId %>" class="btn ghost">Edit</a>
+                    <form method="POST" action="/categories/delete/<%= cat.categoryId %>" style="margin: 0;">
+                      <button type="submit" class="btn danger" onclick="return confirm('Are you sure?')">Delete</button>
+                    </form>
+                  </div>
+                </td>
+              <% } %>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    </div>
+  <% } else { %>
+    <p style="text-align: center; color: var(--muted); padding: 40px 0;">No categories found</p>
+  <% } %>
+</div>
+
+<%- include('../partials/footer') %>

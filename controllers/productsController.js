@@ -1,43 +1,93 @@
 const { v4: uuidv4 } = require('uuid');
-const { PutObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
-const { ScanCommand, GetCommand, PutCommand, UpdateCommand, DeleteCommand } = require('@aws-sdk/lib-dynamodb');
-const { docClient, s3Client, TABLE_NAME, BUCKET_NAME, REGION } = require('../config/aws');
+const ProductService = require('../services/ProductService');
+const CategoryService = require('../services/CategoryService');
+const { uploadToS3, deleteFromS3 } = require('../utils/s3Helper');
 
 async function listProducts(req, res) {
   try {
-    const data = await docClient.send(new ScanCommand({ TableName: TABLE_NAME }));
-    const products = (data.Items || []).sort((a, b) => a.name.localeCompare(b.name));
+    const filters = {
+      categoryId: req.query.category || null,
+      minPrice: req.query.minPrice ? Number(req.query.minPrice) : null,
+      maxPrice: req.query.maxPrice ? Number(req.query.maxPrice) : null,
+      search: req.query.search || null,
+      sortBy: req.query.sortBy || 'name',
+      sortOrder: req.query.sortOrder || 'asc'
+    };
+
+    // Lọc bỏ null values
+    Object.keys(filters).forEach(key => {
+      if (filters[key] === null) {
+        delete filters[key];
+      }
+    });
+
+    const products = await ProductService.getAllProducts(filters);
+    
+    // Thêm trạng thái tồn kho cho mỗi sản phẩm
+    const productsWithStatus = products.map(p => ({
+      ...p,
+      inventoryStatus: ProductService.getInventoryStatus(p.quantity)
+    }));
+
+    const categories = await CategoryService.getAllCategories();
+
     res.render('list', {
-      products,
+      products: productsWithStatus,
+      categories,
       message: req.query.message || null,
-      error: req.query.error || null
+      error: req.query.error || null,
+      filters
     });
   } catch (err) {
     console.error('listProducts error:', err);
-    res.status(500).render('list', { products: [], message: null, error: 'Could not load products.' });
+    res.status(500).render('list', {
+      products: [],
+      categories: [],
+      message: null,
+      error: 'Could not load products.',
+      filters: {}
+    });
   }
 }
 
-function showAddForm(_req, res) {
-  res.render('add', { error: null });
+async function showAddForm(_req, res) {
+  try {
+    const categories = await CategoryService.getAllCategories();
+    res.render('add', { categories, error: null });
+  } catch (err) {
+    console.error('showAddForm error:', err);
+    res.render('add', { categories: [], error: 'Could not load categories' });
+  }
 }
 
 async function createProduct(req, res) {
-  const { name, price, quantity } = req.body;
+  const { name, price, quantity, categoryId } = req.body;
   try {
     if (!name || !price || !quantity) {
-      return res.status(400).render('add', { error: 'Please provide name, price, and quantity.' });
+      const categories = await CategoryService.getAllCategories();
+      return res.status(400).render('add', {
+        categories,
+        error: 'Please provide name, price, and quantity.'
+      });
     }
 
     if (!req.file) {
-      return res.status(400).render('add', { error: 'Please upload a product image.' });
+      const categories = await CategoryService.getAllCategories();
+      return res.status(400).render('add', {
+        categories,
+        error: 'Please upload a product image.'
+      });
     }
 
     const priceValue = Number(price);
     const quantityValue = Number(quantity);
 
     if (Number.isNaN(priceValue) || Number.isNaN(quantityValue)) {
-      return res.status(400).render('add', { error: 'Price and quantity must be numbers.' });
+      const categories = await CategoryService.getAllCategories();
+      return res.status(400).render('add', {
+        categories,
+        error: 'Price and quantity must be numbers.'
+      });
     }
 
     const { url, key } = await uploadToS3(req.file);
@@ -47,27 +97,34 @@ async function createProduct(req, res) {
       name: name.trim(),
       price: priceValue,
       quantity: quantityValue,
+      categoryId: categoryId || null,
       url_image: url,
       imageKey: key
     };
 
-    await docClient.send(new PutCommand({ TableName: TABLE_NAME, Item: product }));
+    await ProductService.createProduct(product, req.session.user.userId);
 
     res.redirect('/?message=' + encodeURIComponent('Product created'));
   } catch (err) {
     console.error('createProduct error:', err);
-    res.status(500).render('add', { error: 'Could not create product.' });
+    const categories = await CategoryService.getAllCategories();
+    res.status(500).render('add', {
+      categories,
+      error: err.message || 'Could not create product.'
+    });
   }
 }
 
 async function showEditForm(req, res) {
   const { id } = req.params;
   try {
-    const { Item } = await docClient.send(new GetCommand({ TableName: TABLE_NAME, Key: { productId: id } }));
-    if (!Item) {
+    const product = await ProductService.getProductById(id);
+    if (!product) {
       return res.redirect('/?error=' + encodeURIComponent('Product not found'));
     }
-    res.render('edit', { product: Item, error: null });
+
+    const categories = await CategoryService.getAllCategories();
+    res.render('edit', { product, categories, error: null });
   } catch (err) {
     console.error('showEditForm error:', err);
     res.redirect('/?error=' + encodeURIComponent('Could not load product'));
@@ -76,10 +133,10 @@ async function showEditForm(req, res) {
 
 async function updateProduct(req, res) {
   const { id } = req.params;
-  const { name, price, quantity } = req.body;
+  const { name, price, quantity, categoryId } = req.body;
   try {
-    const existing = await docClient.send(new GetCommand({ TableName: TABLE_NAME, Key: { productId: id } }));
-    if (!existing.Item) {
+    const product = await ProductService.getProductById(id);
+    if (!product) {
       return res.redirect('/?error=' + encodeURIComponent('Product not found'));
     }
 
@@ -87,83 +144,66 @@ async function updateProduct(req, res) {
     const quantityValue = Number(quantity);
 
     if (!name || Number.isNaN(priceValue) || Number.isNaN(quantityValue)) {
-      return res.status(400).render('edit', { product: existing.Item, error: 'Name, price, and quantity are required.' });
+      const categories = await CategoryService.getAllCategories();
+      return res.status(400).render('edit', {
+        product,
+        categories,
+        error: 'Name, price, and quantity are required.'
+      });
     }
 
-    let imageUrl = existing.Item.url_image;
-    let imageKey = existing.Item.imageKey;
+    let imageUrl = product.url_image;
+    let imageKey = product.imageKey;
 
     if (req.file) {
       const uploaded = await uploadToS3(req.file);
       imageUrl = uploaded.url;
       imageKey = uploaded.key;
-      if (existing.Item.imageKey) {
-        await deleteFromS3(existing.Item.imageKey);
+      if (product.imageKey) {
+        await deleteFromS3(product.imageKey);
       }
     }
 
-    await docClient.send(new UpdateCommand({
-      TableName: TABLE_NAME,
-      Key: { productId: id },
-      UpdateExpression: 'SET #name = :name, #price = :price, #quantity = :quantity, #url = :url, #imageKey = :imageKey',
-      ExpressionAttributeNames: {
-        '#name': 'name',
-        '#price': 'price',
-        '#quantity': 'quantity',
-        '#url': 'url_image',
-        '#imageKey': 'imageKey'
-      },
-      ExpressionAttributeValues: {
-        ':name': name.trim(),
-        ':price': priceValue,
-        ':quantity': quantityValue,
-        ':url': imageUrl,
-        ':imageKey': imageKey
-      }
-    }));
+    await ProductService.updateProduct(id, {
+      name: name.trim(),
+      price: priceValue,
+      quantity: quantityValue,
+      categoryId: categoryId || null,
+      url_image: imageUrl,
+      imageKey: imageKey
+    }, req.session.user.userId);
 
     res.redirect('/?message=' + encodeURIComponent('Product updated'));
   } catch (err) {
     console.error('updateProduct error:', err);
-    res.status(500).render('edit', { product: { productId: id, name, price, quantity }, error: 'Could not update product.' });
+    const product = await ProductService.getProductById(id);
+    const categories = await CategoryService.getAllCategories();
+    res.status(500).render('edit', {
+      product,
+      categories,
+      error: err.message || 'Could not update product.'
+    });
   }
 }
 
 async function deleteProduct(req, res) {
   const { id } = req.params;
   try {
-    const { Item } = await docClient.send(new GetCommand({ TableName: TABLE_NAME, Key: { productId: id } }));
-    if (Item?.imageKey) {
-      await deleteFromS3(Item.imageKey);
+    const product = await ProductService.getProductById(id);
+    if (!product) {
+      return res.redirect('/?error=' + encodeURIComponent('Product not found'));
     }
 
-    await docClient.send(new DeleteCommand({ TableName: TABLE_NAME, Key: { productId: id } }));
+    if (product.imageKey) {
+      await deleteFromS3(product.imageKey);
+    }
+
+    await ProductService.deleteProduct(id, req.session.user.userId);
 
     res.redirect('/?message=' + encodeURIComponent('Product deleted'));
   } catch (err) {
     console.error('deleteProduct error:', err);
-    res.redirect('/?error=' + encodeURIComponent('Could not delete product'));
-  }
-}
-
-async function uploadToS3(file) {
-  const key = `products/${uuidv4()}-${Date.now()}-${file.originalname.replace(/\s+/g, '-')}`;
-  const command = new PutObjectCommand({
-    Bucket: BUCKET_NAME,
-    Key: key,
-    Body: file.buffer,
-    ContentType: file.mimetype
-  });
-  await s3Client.send(command);
-  const url = `https://${BUCKET_NAME}.s3.${REGION}.amazonaws.com/${key}`;
-  return { url, key };
-}
-
-async function deleteFromS3(key) {
-  try {
-    await s3Client.send(new DeleteObjectCommand({ Bucket: BUCKET_NAME, Key: key }));
-  } catch (_err) {
-    // Ignore cleanup errors to keep UX smooth.
+    res.redirect('/?error=' + encodeURIComponent(err.message || 'Could not delete product'));
   }
 }
 

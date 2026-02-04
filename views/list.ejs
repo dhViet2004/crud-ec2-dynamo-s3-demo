@@ -13,11 +13,51 @@
       <p class="eyebrow">Inventory</p>
       <h1>Products</h1>
     </div>
-    <a class="btn primary" href="/add">+ New Product</a>
+    <% if (isAdmin) { %>
+      <a class="btn primary" href="/add">+ New Product</a>
+    <% } %>
   </header>
 
+  <!-- Search & Filter Section -->
+  <div style="background: #f9f9f9; padding: 16px; border-radius: 10px; margin-bottom: 20px;">
+    <form method="GET" action="/" style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr auto; gap: 12px;">
+      <div>
+        <label style="display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px;">Search</label>
+        <input type="text" name="search" placeholder="Product name..." value="<%= filters.search || '' %>" />
+      </div>
+
+      <div>
+        <label style="display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px;">Category</label>
+        <select name="category">
+          <option value="">All Categories</option>
+          <% if (categories && categories.length > 0) { %>
+            <% categories.forEach(cat => { %>
+              <option value="<%= cat.categoryId %>" <%= filters.categoryId === cat.categoryId ? 'selected' : '' %>>
+                <%= cat.name %>
+              </option>
+            <% }); %>
+          <% } %>
+        </select>
+      </div>
+
+      <div>
+        <label style="display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px;">Min Price</label>
+        <input type="number" name="minPrice" placeholder="Min" value="<%= filters.minPrice || '' %>" />
+      </div>
+
+      <div>
+        <label style="display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px;">Max Price</label>
+        <input type="number" name="maxPrice" placeholder="Max" value="<%= filters.maxPrice || '' %>" />
+      </div>
+
+      <div style="display: flex; align-items: flex-end;">
+        <button type="submit" class="btn primary" style="width: 100%;">Filter</button>
+      </div>
+    </form>
+  </div>
+
   <% if (products.length === 0) { %>
-    <p class="muted">No products yet. Add one to get started.</p>
+    <p class="muted">No products found.</p>
   <% } else { %>
     <div class="table-wrapper">
       <table>
@@ -25,8 +65,10 @@
           <tr>
             <th>Image</th>
             <th>Name</th>
+            <th>Category</th>
             <th>Price</th>
             <th>Quantity</th>
+            <th>Status</th>
             <th></th>
           </tr>
         </thead>
@@ -41,13 +83,37 @@
                 <% } %>
               </td>
               <td><%= p.name %></td>
+              <td>
+                <% if (p.categoryId) { %>
+                  <% 
+                    const category = categories && categories.find(c => c.categoryId === p.categoryId);
+                    const categoryName = category ? category.name : 'Unknown';
+                  %>
+                  <%= categoryName %>
+                <% } else { %>
+                  <span class="muted">—</span>
+                <% } %>
+              </td>
               <td><%= Number(p.price).toLocaleString('en-US', { style: 'currency', currency: 'USD' }) %></td>
-              <td><%= p.quantity %></td>
+              <td>
+                <strong><%= p.quantity %></strong>
+              </td>
+              <td>
+                <% if (p.inventoryStatus === 'in-stock') { %>
+                  <span class="badge in-stock">In Stock</span>
+                <% } else if (p.inventoryStatus === 'low-stock') { %>
+                  <span class="badge low-stock">Low Stock</span>
+                <% } else { %>
+                  <span class="badge out-of-stock">Out of Stock</span>
+                <% } %>
+              </td>
               <td class="actions">
-                <a class="btn ghost" href="/edit/<%= p.productId %>">Edit</a>
-                <form action="/delete/<%= p.productId %>" method="POST" onsubmit="return confirm('Delete this product?');">
-                  <button class="btn danger" type="submit">Delete</button>
-                </form>
+                <% if (isAdmin) { %>
+                  <a class="btn ghost" href="/edit/<%= p.productId %>">Edit</a>
+                  <form action="/delete/<%= p.productId %>" method="POST" onsubmit="return confirm('Delete this product?');">
+                    <button class="btn danger" type="submit">Delete</button>
+                  </form>
+                <% } %>
               </td>
             </tr>
           <% }); %>

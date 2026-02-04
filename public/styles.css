@@ -241,3 +241,49 @@ input:focus, select:focus {
   .actions { flex-direction: column; }
   .actions a, .actions button { width: 100%; }
 }
+
+.user-info {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: #f0f0f0;
+  border-radius: 20px;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.badge.admin {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.badge.staff {
+  background: #e3f2fd;
+  color: #1565c0;
+}
+
+.badge.in-stock {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.badge.low-stock {
+  background: #fff3e0;
+  color: #e65100;
+}
+
+.badge.out-of-stock {
+  background: #f5f5f5;
+  color: #666666;
+}

@@ -1,0 +1,26 @@
+<%- include('../partials/header') %>
+
+<div class="card narrow">
+  <div class="card__header">
+    <div>
+      <p class="eyebrow">System</p>
+      <h1>Error</h1>
+    </div>
+  </div>
+
+  <div class="alert error">
+    <%= message %>
+  </div>
+
+  <% if (error) { %>
+    <p style="color: var(--muted); font-size: 14px;">
+      <%= error %>
+    </p>
+  <% } %>
+
+  <div class="form__actions">
+    <a href="/" class="btn primary">Back to Home</a>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>
